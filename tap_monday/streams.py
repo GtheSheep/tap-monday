@@ -7,8 +7,6 @@ from singer_sdk import typing as th
 
 from tap_monday.client import MondayStream
 
-DEFAULT_BOARD_LIMIT = 25
-
 
 class WorkspacesStream(MondayStream):
     name = "workspaces"
@@ -44,7 +42,6 @@ class WorkspacesStream(MondayStream):
 class BoardsStream(MondayStream):
     name = "boards"
     primary_keys = ["id"]
-    replication_key = "updated_at"
     schema = th.PropertiesList(
         th.Property("id", th.IntegerType),
         th.Property("name", th.StringType),
@@ -52,7 +49,24 @@ class BoardsStream(MondayStream):
         th.Property("state", th.StringType),
         th.Property("updated_at", th.DateTimeType),
         th.Property("workspace_id", th.IntegerType),
-        th.Property("items", th.ArrayType(th.ObjectType(th.Property("id", th.IntegerType)))),
+        th.Property("items", th.ArrayType(th.ObjectType(
+            th.Property("id", th.IntegerType),
+            th.Property("created_at", th.DateTimeType),
+            th.Property("name", th.StringType),
+            th.Property("state", th.StringType),
+            th.Property("updated_at", th.DateTimeType),
+            th.Property("board_id", th.IntegerType),
+            th.Property("column_values", th.ArrayType(
+                th.ObjectType(
+                    th.Property("id", th.StringType),
+                    th.Property("title", th.StringType),
+                    th.Property("text", th.StringType),
+                    th.Property("type", th.StringType),
+                    th.Property("value", th.ObjectType()),
+                    th.Property("additional_info", th.ObjectType()),
+                )
+            )),
+        ))),
     ).to_dict()
 
     def get_url_params(
@@ -60,33 +74,44 @@ class BoardsStream(MondayStream):
     ) -> Dict[str, Any]:
         return {
             "page": next_page_token or 1,
-            "board_limit": self.config.get("board_limit", DEFAULT_BOARD_LIMIT)
+            "board_limit": self.config["board_limit"]
         }
+
 
     @property
     def query(self) -> str:
         return """
             query ($page: Int!, $board_limit: Int!) {
                 boards(limit: $board_limit, page: $page, order_by: created_at) {
-                        name
                         id
+                        updated_at
+                        name
                         description
                         state
-                        updated_at
                         workspace_id
                         items {
                             id
+                            name
+                            state
+                            created_at
+                            updated_at
+                            column_values {
+                                id
+                                title
+                                text
+                                type
+                                value
+                                additional_info
+                            }
                         }
                     }
                 }
         """
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
-        for item in record["items"]:
-            return {
-                "board_id": record["id"],
-                "item_id": int(item["id"])
-            }
+        return {
+            "board_id": record["id"],
+        }
 
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
         resp_json = response.json()
@@ -195,34 +220,26 @@ class GroupsStream(MondayStream):
             yield row
 
     def post_process(self, row: dict, context: Optional[dict] = None) -> dict:
+        row["position"] = float(row["position"])
         row["board_id"] = context["board_id"]
         return row
 
 
-class ItemsStream(MondayStream):
-    name = "items"
+class ColumnsStream(MondayStream):
+    name = "columns"
     primary_keys = ["id"]
     replication_key = None
     parent_stream_type = BoardsStream
     ignore_parent_replication_keys = True
     # records_jsonpath: str = "$.data.boards[0].groups[*]"  # TODO: use records_jsonpath instead of overriding parse_response
     schema = th.PropertiesList(
-        th.Property("id", th.IntegerType),
-        th.Property("created_at", th.DateTimeType),
-        th.Property("name", th.StringType),
-        th.Property("state", th.StringType),
-        th.Property("updated_at", th.DateTimeType),
+        th.Property("id", th.StringType),
+        th.Property("archived", th.BooleanType),
+        th.Property("settings_str", th.StringType),
+        th.Property("title", th.StringType),
+        th.Property("type", th.StringType),
+        th.Property("width", th.IntegerType),
         th.Property("board_id", th.IntegerType),
-        th.Property("column_values", th.ArrayType(
-            th.ObjectType(
-                th.Property("id", th.StringType),
-                th.Property("title", th.StringType),
-                th.Property("text", th.StringType),
-                th.Property("type", th.StringType),
-                # th.Property("value", th.ObjectType()),
-                # th.Property("additional_info", th.ObjectType()),
-            )
-        )),
     ).to_dict()
 
     def get_url_params(
@@ -230,47 +247,31 @@ class ItemsStream(MondayStream):
     ) -> Dict[str, Any]:
         return {
             "board_id": context["board_id"],
-            "item_id": [context["item_id"]],
-            "page": next_page_token or 1
         }
 
     @property
     def query(self) -> str:
         return """
-            query ($item_id: [Int], $page: Int!) {
-                items(ids: $item_id, page: $page) {
-                    id
-                    name
-                    state
-                    created_at
-                    updated_at
-                    column_values {
+            query ($board_id: [Int]) {
+                boards(ids: $board_id) {
+                    columns {
+                        archived
                         id
+                        settings_str
                         title
-                        text
                         type
-                        value
-                        additional_info
-                    }
+                        width
+                    }    
                 }
             }
         """
 
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
         resp_json = response.json()
-        for row in resp_json["data"]["items"]:
-            yield row
+        for row in resp_json["data"]["boards"]:
+            for column in row["columns"]:
+                yield column
 
     def post_process(self, row: dict, context: Optional[dict] = None) -> dict:
         row["board_id"] = context["board_id"]
         return row
-
-    def get_next_page_token(
-        self, response: requests.Response, previous_token: Optional[Any]
-    ) -> Any:
-        current_page = previous_token if previous_token is not None else 1
-        if len(response.json()["data"][self.name]) > 0:
-            next_page_token = current_page + 1
-        else:
-            next_page_token = None
-        return next_page_token

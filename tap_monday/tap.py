@@ -3,23 +3,23 @@
 from typing import List
 
 from singer_sdk import Tap, Stream
-from singer_sdk import typing as th  # JSON schema typing helpers
+from singer_sdk import typing as th
 
 
 from tap_monday.streams import (
     WorkspacesStream,
     BoardsStream,
     BoardViewsStream,
+    ColumnsStream,
     GroupsStream,
-    ItemsStream,
 )
 
 STREAM_TYPES = [
     WorkspacesStream,
     BoardsStream,
     BoardViewsStream,
+    ColumnsStream,
     GroupsStream,
-    ItemsStream,
 ]
 
 
@@ -33,6 +33,12 @@ class TapMonday(Tap):
             th.StringType,
             required=True,
             description="The token to authenticate against the API service"
+        ),
+        th.Property(
+            "board_limit",
+            th.IntegerType,
+            default=10,
+            description="The number of boards to fetch at once"
         ),
     ).to_dict()
 

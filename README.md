@@ -4,6 +4,8 @@
 
 Built with the [Meltano Tap SDK](https://sdk.meltano.com) for Singer Taps.
 
+TODO: Convert streams to incremental
+
 ## Installation
 
 
@@ -16,6 +18,7 @@ pipx install git+https://github.com/gthesheep/tap-monday.git
 ### Accepted Config Options
 
 * `auth_token` - Authorisation token obtained from following the process in the documentation [here](https://api.developer.monday.com/docs/authentication)
+* `board_limit` - Number of boards to fetch at once, default 10
 
 A full list of supported settings and capabilities for this
 tap is available by running:

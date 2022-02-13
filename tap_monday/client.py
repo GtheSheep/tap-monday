@@ -5,8 +5,7 @@ import backoff
 import requests
 from requests.exceptions import ConnectionError
 
-from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Union, List, Iterable, cast
+from typing import Any, Callable, Optional, Iterable
 
 from singer_sdk.streams import GraphQLStream
 from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
@@ -21,7 +20,7 @@ class MondayStream(GraphQLStream):
     def http_headers(self) -> dict:
         headers = {}
         headers["Authorization"] = self.config.get("auth_token")
-        headers["Content-Type"] = self.config.get("application/json")
+        headers["Content-Type"] = "application/json"
         if "user_agent" in self.config:
             headers["User-Agent"] = self.config.get("user_agent")
         return headers
@@ -30,6 +29,29 @@ class MondayStream(GraphQLStream):
         resp_json = response.json()
         for row in resp_json["data"]:
             yield row
+
+    def request_decorator(self, func: Callable) -> Callable:
+        """Instantiate a decorator for handling request failures.
+
+        Developers may override this method to provide custom backoff or retry
+        handling.
+
+        Args:
+            func: Function to decorate.
+
+        Returns:
+            A decorated method.
+        """
+        decorator: Callable = backoff.on_exception(
+            backoff.expo,
+            (
+                RetriableAPIError,
+                requests.exceptions.ReadTimeout,
+            ),
+            max_tries=10,
+            factor=2,
+        )(func)
+        return decorator
 
     def request_records(self, context: Optional[dict]) -> Iterable[dict]:
         """Request records from REST endpoint(s), returning response records.
