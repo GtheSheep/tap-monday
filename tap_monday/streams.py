@@ -4,6 +4,7 @@ from typing import Any, Optional, Dict, Iterable
 
 import requests
 from singer_sdk import typing as th
+from singer_sdk.exceptions import FatalAPIError, RetriableAPIError
 
 from tap_monday.client import MondayStream
 
@@ -128,11 +129,32 @@ class BoardsStream(MondayStream):
         self, response: requests.Response, previous_token: Optional[Any]
     ) -> Any:
         current_page = previous_token if previous_token is not None else 1
-        if len(response.json()["data"][self.name]) > 0:
+        if len(response.json()["data"][self.name]) == self.config["board_limit"]:
             next_page_token = current_page + 1
         else:
             next_page_token = None
         return next_page_token
+
+    def validate_response(self, response: requests.Response) -> None:
+        if response.status_code == 408:
+            msg = (
+                f"{response.status_code} Server Error: "
+                f"{response.reason} for path: {self.path}"
+            )
+            raise RetriableAPIError(msg)
+        elif 400 <= response.status_code < 500:
+            msg = (
+                f"{response.status_code} Client Error: "
+                f"{response.reason} for path: {self.path}"
+            )
+            raise FatalAPIError(msg)
+
+        elif 500 <= response.status_code < 600:
+            msg = (
+                f"{response.status_code} Server Error: "
+                f"{response.reason} for path: {self.path}"
+            )
+            raise RetriableAPIError(msg)
 
 
 class BoardViewsStream(MondayStream):
