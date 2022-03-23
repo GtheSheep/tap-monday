@@ -63,8 +63,8 @@ class BoardsStream(MondayStream):
                     th.Property("title", th.StringType),
                     th.Property("text", th.StringType),
                     th.Property("type", th.StringType),
-                    th.Property("value", th.ObjectType()),
-                    th.Property("additional_info", th.ObjectType()),
+                    th.Property("value", th.StringType),
+                    th.Property("additional_info", th.StringType),
                 )
             )),
         ))),
