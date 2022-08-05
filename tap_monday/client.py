@@ -1,5 +1,6 @@
 """GraphQL client handling, including MondayStream base class."""
 import copy
+from optparse import Option
 
 import backoff
 import requests
@@ -53,6 +54,15 @@ class MondayStream(GraphQLStream):
         )(func)
         return decorator
 
+    def calculate_sync_cost(
+        self,
+        request: requests.PreparedRequest,
+        response: requests.Response,
+        context: Optional[dict],
+    ):
+        """Return the cost of the last REST API call."""
+        return {"rest": 1, "graphql": 0, "search": 0}
+
     def request_records(self, context: Optional[dict]) -> Iterable[dict]:
         """Request records from REST endpoint(s), returning response records.
 
@@ -80,6 +90,9 @@ class MondayStream(GraphQLStream):
                 resp = decorated_request(prepared_request, context)
             except ConnectionError as c:
                 return self.request_records(context=context)
+
+            self.update_sync_costs(decorated_request, resp, context)
+
             for row in self.parse_response(resp):
                 yield row
             previous_token = copy.deepcopy(next_page_token)
@@ -93,3 +106,5 @@ class MondayStream(GraphQLStream):
                 )
             # Cycle until get_next_page_token() no longer returns a value
             finished = not next_page_token
+
+        self.log_sync_costs()

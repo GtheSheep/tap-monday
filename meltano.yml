@@ -1,6 +1,6 @@
 version: 1
 send_anonymous_usage_stats: true
-project_id: 
+project_id:
 plugins:
   extractors:
   - name: tap-monday
@@ -14,7 +14,7 @@ plugins:
     - name: auth_token
       kind: password
     config:
-      auth_token: 
+      auth_token:
   loaders:
   - name: target-jsonl
     variant: andyh1203
