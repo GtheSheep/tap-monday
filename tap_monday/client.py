@@ -49,7 +49,7 @@ class MondayStream(GraphQLStream):
                 RetriableAPIError,
                 requests.exceptions.ReadTimeout,
             ),
-            max_tries=10,
+            max_tries=20,
             factor=2,
         )(func)
         return decorator
