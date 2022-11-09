@@ -63,15 +63,16 @@ class BoardsStream(MondayStream):
                     th.Property("title", th.StringType),
                     th.Property("text", th.StringType),
                     th.Property("type", th.StringType),
-                    th.Property("value", th.ObjectType(
-                        th.Property("changed_at", th.DateTimeType),
-                        th.Property("personsAndTeams", th.ArrayType(
-                            th.ObjectType(
-                                th.Property("id", th.IntegerType),
-                                th.Property("kind", th.StringType)
-                            )
-                        ))
-                    )),
+                    th.Property("value", th.StringType),
+                    # th.ObjectType(
+                    #     th.Property("changed_at", th.DateTimeType),
+                    #     th.Property("personsAndTeams", th.ArrayType(
+                    #         th.ObjectType(
+                    #             th.Property("id", th.IntegerType),
+                    #             th.Property("kind", th.StringType)
+                    #         )
+                    #     ))
+                    # )),
                     th.Property("additional_info", th.ObjectType()),
                 )
             )),
