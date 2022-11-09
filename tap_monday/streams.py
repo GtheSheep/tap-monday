@@ -73,7 +73,7 @@ class BoardsStream(MondayStream):
                     #         )
                     #     ))
                     # )),
-                    th.Property("additional_info", th.ObjectType()),
+                    th.Property("additional_info", th.StringType),
                 )
             )),
         ))),
