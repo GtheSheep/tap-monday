@@ -108,3 +108,8 @@ class MondayStream(GraphQLStream):
             finished = not next_page_token
 
         self.log_sync_costs()
+
+    def prepare_request(self, context: Optional[dict], next_page_token: Optional[Any]) -> requests.PreparedRequest:
+        prepared_request = super().prepare_request(context, next_page_token)
+        self.logger.info(f"Request payload: {prepared_request.body}")
+        return prepared_request
